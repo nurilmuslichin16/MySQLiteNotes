@@ -3,12 +3,18 @@ package com.example.mysqlitenotes
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.mysqlitenotes.adapter.NoteAdapter
 import com.example.mysqlitenotes.db.NoteHelper
 import com.example.mysqlitenotes.entity.Note
+import com.example.mysqlitenotes.helper.MappingHelper
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +39,20 @@ class MainActivity : AppCompatActivity() {
 
         noteHelper = NoteHelper.getInstance(applicationContext)
         noteHelper.open()
+
+        if (savedInstanceState == null) {
+            loadNotesAsync()
+        } else {
+            val list = savedInstanceState.getParcelableArrayList<Note>(EXTRA_STATE)
+            if (list != null) {
+                adapter.listNotes = list
+            }
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putParcelableArrayList(EXTRA_STATE, adapter.listNotes)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -40,7 +60,7 @@ class MainActivity : AppCompatActivity() {
 
         if (data != null) {
             when(requestCode) {
-                NoteAddUpdateActivity.RESULT_ADD -> if (resultCode == NoteAddUpdateActivity.RESULT_ADD) {
+                NoteAddUpdateActivity.REQUEST_ADD -> if (resultCode == NoteAddUpdateActivity.RESULT_ADD) {
                     val note = data.getParcelableExtra<Note>(NoteAddUpdateActivity.EXTRA_NOTE) as Note
 
                     adapter.addItem(note)
@@ -48,22 +68,25 @@ class MainActivity : AppCompatActivity() {
 
                     showSnackbarMessage("Satu item berhasil ditambahkan")
                 }
-                NoteAddUpdateActivity.RESULT_UPDATE -> {
-                    val note = data.getParcelableExtra<Note>(NoteAddUpdateActivity.EXTRA_NOTE) as Note
-                    val position = data.getIntExtra(NoteAddUpdateActivity.EXTRA_POSITION, 0)
+                NoteAddUpdateActivity.REQUEST_UPDATE ->
+                    when (resultCode) {
+                        NoteAddUpdateActivity.RESULT_UPDATE -> {
+                            val note = data.getParcelableExtra<Note>(NoteAddUpdateActivity.EXTRA_NOTE) as Note
+                            val position = data.getIntExtra(NoteAddUpdateActivity.EXTRA_POSITION, 0)
 
-                    adapter.updateItem(position, note)
-                    rv_notes.smoothScrollToPosition(position)
+                            adapter.updateItem(position, note)
+                            rv_notes.smoothScrollToPosition(position)
 
-                    showSnackbarMessage("Satu item berhasil diubah")
-                }
-                NoteAddUpdateActivity.RESULT_DELETE -> {
-                    val position = data.getIntExtra(NoteAddUpdateActivity.EXTRA_POSITION, 0)
+                            showSnackbarMessage("Satu item berhasil diubah")
+                        }
+                        NoteAddUpdateActivity.RESULT_DELETE -> {
+                            val position = data.getIntExtra(NoteAddUpdateActivity.EXTRA_POSITION, 0)
 
-                    adapter.removeItem(position)
+                            adapter.removeItem(position)
 
-                    showSnackbarMessage("Satu item berhasil dihapus")
-                }
+                            showSnackbarMessage("Satu item berhasil dihapus")
+                        }
+                    }
             }
         }
     }
@@ -75,5 +98,27 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSnackbarMessage(message: String) {
         Snackbar.make(rv_notes, message, Snackbar.LENGTH_SHORT).show()
+    }
+
+    private fun loadNotesAsync() {
+        GlobalScope.launch(Dispatchers.Main) {
+            progressbar.visibility = View.VISIBLE
+            val deferredNotes = async(Dispatchers.IO) {
+                val cursor = noteHelper.queryAll()
+                MappingHelper.mapCursorToArrayList(cursor)
+            }
+            progressbar.visibility = View.INVISIBLE
+            val notes = deferredNotes.await()
+            if (notes.size > 0) {
+                adapter.listNotes = notes
+            } else {
+                adapter.listNotes = ArrayList()
+                showSnackbarMessage("Tidak ada data saat ini")
+            }
+        }
+    }
+
+    companion object {
+        private const val EXTRA_STATE = "EXTRA_STATE"
     }
 }

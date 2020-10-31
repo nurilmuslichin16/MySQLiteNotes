@@ -62,18 +62,6 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
         btn_submit.setOnClickListener(this)
     }
 
-    companion object {
-        const val EXTRA_NOTE = "extra_note"
-        const val EXTRA_POSITION = "extra_position"
-        const val REQUEST_ADD = 100
-        const val RESULT_ADD = 101
-        const val REQUEST_UPDATE = 200
-        const val RESULT_UPDATE = 201
-        const val RESULT_DELETE = 301
-        const val ALERT_DIALOG_CLOSE = 10
-        const val ALERT_DIALOG_DELETE = 20
-    }
-
     override fun onClick(v: View?) {
         if (v?.id == R.id.btn_submit) {
             val title = edt_title.text.toString().trim()
@@ -183,5 +171,17 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
             .setNegativeButton("Tidak") {dialog, id -> dialog.cancel()}
         val alertDialog = alertDialogBuilder.create()
         alertDialog.show()
+    }
+
+    companion object {
+        const val EXTRA_NOTE = "extra_note"
+        const val EXTRA_POSITION = "extra_position"
+        const val REQUEST_ADD = 100
+        const val RESULT_ADD = 101
+        const val REQUEST_UPDATE = 200
+        const val RESULT_UPDATE = 201
+        const val RESULT_DELETE = 301
+        const val ALERT_DIALOG_CLOSE = 10
+        const val ALERT_DIALOG_DELETE = 20
     }
 }
